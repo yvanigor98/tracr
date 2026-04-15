@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment
+.env
+*.env
+
+# pyenv
+.python-version
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Docker
+*.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
