@@ -144,3 +144,18 @@ def process_pending_documents():
 
     logger.info("ingestion.queued_processing", count=len(pending_ids))
     return {"queued": len(pending_ids)}
+
+
+# ---------------------------------------------------------------------------
+# Beat schedule — periodic tasks
+# ---------------------------------------------------------------------------
+celery_app.conf.beat_schedule = {
+    "ingest-all-sources-every-15-minutes": {
+        "task": "tracr.tasks.scheduler.ingest_all_sources",
+        "schedule": 900.0,  # seconds — 15 minutes
+    },
+    "process-pending-documents-every-5-minutes": {
+        "task": "tracr.tasks.ingestion.process_pending_documents",
+        "schedule": 300.0,  # seconds — 5 minutes
+    },
+}
