@@ -109,3 +109,38 @@ async def _ingest_source_async(source_id: str):
             return {"status": "ok", "saved": saved}
     finally:
         await engine.dispose()
+
+
+@celery_app.task
+def process_pending_documents():
+    """Queue NLP processing for all pending documents."""
+    import asyncio
+    from sqlalchemy import select
+    from tracr.db.models import ProcessingStatus, RawDocument as RawDocumentModel
+
+    async def _get_pending():
+        SessionLocal, engine = get_session_factory()
+        try:
+            async with SessionLocal() as db:
+                result = await db.execute(
+                    select(RawDocumentModel.id).where(
+                        RawDocumentModel.processing_status == ProcessingStatus.pending
+                    ).limit(100)
+                )
+                return [str(row[0]) for row in result.fetchall()]
+        finally:
+            await engine.dispose()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        pending_ids = loop.run_until_complete(_get_pending())
+    finally:
+        loop.close()
+
+    from tracr.tasks.processing import process_doc
+    for doc_id in pending_ids:
+        process_doc.apply_async(args=[doc_id], queue="processing")
+
+    logger.info("ingestion.queued_processing", count=len(pending_ids))
+    return {"queued": len(pending_ids)}
