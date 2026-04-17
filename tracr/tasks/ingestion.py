@@ -159,3 +159,9 @@ celery_app.conf.beat_schedule = {
         "schedule": 300.0,  # seconds — 5 minutes
     },
 }
+
+# Graph sync — added Phase 2 Step 3
+celery_app.conf.beat_schedule["sync-graph-every-30-minutes"] = {
+    "task": "tracr.tasks.graph.sync_graph",
+    "schedule": 1800.0,
+}

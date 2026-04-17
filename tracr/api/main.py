@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from tracr.api.routers import entities, jobs, sources
+from tracr.api.routers.graph import router as graph_router
 
 logger = structlog.get_logger()
 
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(entities.router, prefix="/entities", tags=["entities"])
 app.include_router(sources.router, prefix="/sources", tags=["sources"])
 app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+app.include_router(graph_router)
 
 
 @app.get("/health", tags=["health"])

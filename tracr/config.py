@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     NLP_SERVICE_URL: str = "http://localhost:8001"
     NLP_MODEL: str = "en_core_web_trf"
 
+    # Neo4j
+    NEO4J_URI: str = "bolt://localhost:7687"
+    NEO4J_USER: str = "neo4j"
+    NEO4J_PASSWORD: str = "tracr-neo4j"
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

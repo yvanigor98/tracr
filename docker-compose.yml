@@ -32,6 +32,27 @@ services:
       retries: 5
     restart: unless-stopped
 
+  neo4j:
+    image: neo4j:5.18-community
+    container_name: tracr_neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-tracr-neo4j}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER:-neo4j}", "-p", "${NEO4J_PASSWORD:-tracr-neo4j}", "RETURN 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
   nlp_service:
     build:
       context: .
@@ -40,7 +61,7 @@ services:
     ports:
       - "3000:3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:3000/healthz"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -60,6 +81,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      neo4j:
+        condition: service_healthy
       nlp_service:
         condition: service_healthy
     volumes:
@@ -77,6 +100,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      neo4j:
         condition: service_healthy
       nlp_service:
         condition: service_healthy
@@ -118,3 +143,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  neo4j_data:
+  neo4j_logs:
