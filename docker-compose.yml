@@ -32,6 +32,21 @@ services:
       retries: 5
     restart: unless-stopped
 
+  nlp_service:
+    build:
+      context: .
+      dockerfile: docker/nlp/Dockerfile
+    container_name: tracr_nlp
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -44,6 +59,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nlp_service:
         condition: service_healthy
     volumes:
       - .:/app
@@ -60,6 +77,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nlp_service:
         condition: service_healthy
     volumes:
       - .:/app

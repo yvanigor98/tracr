@@ -1,16 +1,19 @@
 import uuid
 from datetime import datetime, timezone
 
+import httpx
 import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from tracr.config import settings
 from tracr.db.models import Entity, Mention, ProcessingStatus, RawDocument
-from tracr.processing.ner import ner_pipeline
+from tracr.processing.ner import ExtractedMention
 from tracr.processing.resolver import resolve_entities
 
 logger = structlog.get_logger()
+
+NLP_SERVICE_URL = "http://nlp-service:3000"
 
 
 def get_session_factory():
@@ -27,13 +30,23 @@ def get_session_factory():
     ), engine
 
 
+async def call_nlp_service(text: str) -> list[ExtractedMention]:
+    """Call BentoML NLP service to extract named entities from text."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            f"{NLP_SERVICE_URL}/extract",
+            json={"request": {"text": text}},
+        )
+        response.raise_for_status()
+        return [ExtractedMention(**m) for m in response.json()]
+
+
 async def process_document(document_id: str):
     log = logger.bind(document_id=document_id)
     SessionLocal, engine = get_session_factory()
 
     try:
         async with SessionLocal() as db:
-            # Get document
             result = await db.execute(
                 select(RawDocument).where(
                     RawDocument.id == uuid.UUID(document_id)
@@ -44,7 +57,6 @@ async def process_document(document_id: str):
                 log.warning("processor.document_not_found")
                 return {"status": "skipped"}
 
-            # Mark as processing
             await db.execute(
                 update(RawDocument)
                 .where(RawDocument.id == uuid.UUID(document_id))
@@ -52,7 +64,6 @@ async def process_document(document_id: str):
             )
             await db.commit()
 
-            # Extract text
             text = " ".join(filter(None, [doc.title, doc.body]))
             if not text.strip():
                 await db.execute(
@@ -63,8 +74,8 @@ async def process_document(document_id: str):
                 await db.commit()
                 return {"status": "skipped", "reason": "empty text"}
 
-            # Run NER
-            mentions = ner_pipeline.extract(text)
+            # Call BentoML NLP service
+            mentions = await call_nlp_service(text)
             log.info("processor.ner_complete", mention_count=len(mentions))
 
             if not mentions:
@@ -76,7 +87,6 @@ async def process_document(document_id: str):
                 await db.commit()
                 return {"status": "ok", "entities": 0, "mentions": 0}
 
-            # Resolve entities
             mention_pairs = [(m.text, m.entity_type) for m in mentions]
             resolved = resolve_entities(mention_pairs)
             log.info("processor.resolved", entity_count=len(resolved))
@@ -86,7 +96,6 @@ async def process_document(document_id: str):
             saved_mentions = 0
 
             for resolved_entity in resolved:
-                # Check if entity already exists
                 result = await db.execute(
                     select(Entity).where(
                         Entity.canonical_name == resolved_entity.canonical_name,
@@ -109,16 +118,12 @@ async def process_document(document_id: str):
                     await db.flush()
                     saved_entities += 1
                 else:
-                    # Update existing entity
                     existing_aliases = set(entity.aliases or [])
                     new_aliases = existing_aliases | set(resolved_entity.aliases)
                     entity.aliases = list(new_aliases)
                     entity.last_seen = now
-                    entity.confidence = min(
-                        1.0, entity.confidence + 0.05
-                    )
+                    entity.confidence = min(1.0, entity.confidence + 0.05)
 
-                # Save mentions for this entity
                 for raw_mention in mentions:
                     if raw_mention.text in resolved_entity.aliases:
                         mention = Mention(
@@ -132,7 +137,6 @@ async def process_document(document_id: str):
                         db.add(mention)
                         saved_mentions += 1
 
-            # Mark document as done
             await db.execute(
                 update(RawDocument)
                 .where(RawDocument.id == uuid.UUID(document_id))
@@ -141,7 +145,7 @@ async def process_document(document_id: str):
 
             await db.commit()
             log.info("processor.complete",
-                     entities=saved_entities, mentions=saved_mentions)
+                      entities=saved_entities, mentions=saved_mentions)
             return {
                 "status": "ok",
                 "entities": saved_entities,
