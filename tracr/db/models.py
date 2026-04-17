@@ -177,3 +177,45 @@ class Mention(Base):
         Index("ix_mentions_document_id", "document_id"),
         Index("ix_mentions_score", "score"),
     )
+
+
+class GeoSourceType(str, PyEnum):
+    exif = "exif"
+    ip_geo = "ip_geo"
+    mordecai3 = "mordecai3"
+    manual = "manual"
+
+
+class LocationEvent(Base):
+    __tablename__ = "location_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True
+    )
+    document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("raw_documents.id", ondelete="CASCADE"), nullable=True
+    )
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    place_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    country_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    geo_source: Mapped[GeoSourceType] = mapped_column(
+        String(20), nullable=False, default=GeoSourceType.mordecai3
+    )
+    confidence: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
+    raw_data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    observed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_location_events_entity_id", "entity_id"),
+        Index("ix_location_events_document_id", "document_id"),
+        Index("ix_location_events_geo_source", "geo_source"),
+    )

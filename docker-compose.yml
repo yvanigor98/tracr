@@ -140,8 +140,65 @@ services:
       - celery_worker
     restart: unless-stopped
 
+  elasticsearch:
+    image: elasticsearch:8.13.0
+    container_name: tracr_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+
+  mordecai:
+    image: openeventdata/mordecai3:latest
+    container_name: tracr_mordecai
+    environment:
+      - ES_URL=http://elasticsearch:9200
+    ports:
+      - "8190:8190"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8190/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  celery_geo_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tracr_celery_geo_worker
+    command: uv run celery -A tracr.tasks worker --loglevel=info -Q geo -c 2
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mordecai:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+
 volumes:
   postgres_data:
   redis_data:
   neo4j_data:
   neo4j_logs:
+  elasticsearch_data:

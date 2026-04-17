@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: str = "tracr-neo4j"
 
+    # Geolocation
+    MORDECAI_URL: str = "http://mordecai:8190"
+    ELASTICSEARCH_URL: str = "http://elasticsearch:9200"
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

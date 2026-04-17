@@ -28,6 +28,7 @@ celery_app.conf.update(
     task_routes={
         "tracr.tasks.ingestion.*": {"queue": "ingestion"},
         "tracr.tasks.processing.*": {"queue": "processing"},
+        "tracr.tasks.geo.*": {"queue": "geo"},
     },
 )
 
