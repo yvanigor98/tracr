@@ -78,6 +78,12 @@ async def _ingest_source_async(source_id: str):
 
             if source.type == "rss":
                 documents = await fetch_feed(source_id=source_id, url=source.url)
+            elif source.type == "whois":
+                from tracr.ingestion.fetchers.whois import fetch_whois
+                documents = await fetch_whois(source_id=source_id, url=source.url)
+            elif source.type == "shodan":
+                from tracr.ingestion.fetchers.shodan import fetch_shodan
+                documents = await fetch_shodan(source_id=source_id, url=source.url)
             else:
                 log.warning("ingestion.unsupported_type", type=source.type)
                 return {"status": "skipped", "reason": f"unsupported type: {source.type}"}

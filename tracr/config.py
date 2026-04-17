@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     MORDECAI_URL: str = "http://mordecai:8190"
     ELASTICSEARCH_URL: str = "http://elasticsearch:9200"
 
+    # Connectors
+    SHODAN_API_KEY: str = ""
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

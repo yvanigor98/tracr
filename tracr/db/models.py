@@ -20,6 +20,8 @@ class SourceType(str, PyEnum):
     api = "api"
     scraper = "scraper"
     tor = "tor"
+    whois = "whois"
+    shodan = "shodan"
 
 
 class ProcessingStatus(str, PyEnum):
